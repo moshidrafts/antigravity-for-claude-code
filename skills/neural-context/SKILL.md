@@ -11,19 +11,19 @@ Neural Associative Memory & Continuous Context Learner. Connects developer memor
 
 ```bash
 # Query the neural associative memory network for relevant context
-python -m tools.neural_context.cli recall "<query>"
+neural-context recall "<query>"
 
 # Teach the network a new fact, rule, or preference
-python -m tools.neural_context.cli learn "<rule or preference>" --category preference
+neural-context learn "<rule or preference>" --category preference
 
 # Harvest Claude Code project memories and repo docs into the neural graph
-python -m tools.neural_context.cli sync
+neural-context sync
 
 # Display neural network topology, active nodes, and synaptic links
-python -m tools.neural_context.cli stats
+neural-context stats
 
 # Run Ebbinghaus decay and memory consolidation (prunes transient noise)
-python -m tools.neural_context.cli consolidate
+neural-context consolidate
 ```
 
 ## How It Works Under The Hood
