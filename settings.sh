@@ -12,8 +12,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$SKILLS_DIR" "$DISABLED_DIR" "$CATALOG_DIR" "$BIN_DIR"
 
 ALL_SKILLS=(
-    "antigravity"
-    "antigravity-planner"
     "caveman"
     "session-metrics"
     "session-report"
@@ -28,13 +26,11 @@ ALL_SKILLS=(
 )
 
 declare -A SKILL_DESC
-SKILL_DESC["antigravity"]="Core zero-fluff protocol & targeted chunk-diff rules"
-SKILL_DESC["antigravity-planner"]="Mandatory Mermaid architecture flowcharts & approval gates"
 SKILL_DESC["caveman"]="JuliusBrussee: Ultra-compressed token communication (cuts 60-75% output tokens)"
 SKILL_DESC["session-metrics"]="Real-time session token cost timeline, cache efficiency & waste analysis"
 SKILL_DESC["session-report"]="Official Anthropic: Self-contained interactive HTML session dashboard"
 SKILL_DESC["frontend-design"]="Anthropic boutique visual design standards (anti-AI slop)"
-SKILL_DESC["test-driven-development"]="obra/superpowers: Enforces failing tests before writing code"
+SKILL_DESC["test-driven-development"]="obra/superpowers: Scoped Red-Green TDD workflow when test-first requested"
 SKILL_DESC["systematic-debugging"]="obra/superpowers: 4-phase root cause analysis before fixes"
 SKILL_DESC["verification-before-completion"]="obra/superpowers: Requires automated test proof before claims"
 SKILL_DESC["web-artifacts-builder"]="Anthropic: React 18 + Tailwind + shadcn/ui multi-component apps"
@@ -68,14 +64,35 @@ remove_line_from_file() {
 }
 
 toggle_caching() {
+    local enable_cache=0
     if [ "$ENABLE_PROMPT_CACHING_1H" = "1" ]; then
         export ENABLE_PROMPT_CACHING_1H=0
         remove_line_from_file '/ENABLE_PROMPT_CACHING_1H/d' "$HOME/.bashrc"
         remove_line_from_file '/ENABLE_PROMPT_CACHING_1H/d' "$HOME/.zshrc"
     else
+        enable_cache=1
         export ENABLE_PROMPT_CACHING_1H=1
         echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.bashrc"
         [ -f "$HOME/.zshrc" ] && echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.zshrc"
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c '
+import json, os, sys
+enable = sys.argv[1] == "1"
+p = os.path.expanduser("~/.claude/settings.json")
+data = {}
+if os.path.exists(p):
+    try:
+        with open(p, "r", encoding="utf-8") as f: data = json.load(f)
+    except Exception: data = {}
+if enable:
+    data["promptCacheTtl"] = "1h"
+    data["subagentPromptCacheTtl"] = "1h"
+else:
+    data.pop("promptCacheTtl", None)
+    data.pop("subagentPromptCacheTtl", None)
+with open(p, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
+' "$enable_cache" 2>/dev/null || true
     fi
 }
 
@@ -100,21 +117,24 @@ TOKEN OPTIMIZATIONS & COMPANIONS:
    - Pre-maps your codebase AST relationships so Claude navigates symbols
      directly instead of grepping files.
 
+NATIVE SUBAGENTS (~/.claude/agents/):
+--------------------------------------------------------------------------
+* architect: Read-only Plan Mode dependency & blast-radius analyst.
+* verifier:  Isolated test, lint, and build verification worker.
+
 BUNDLED SKILLS:
 --------------------------------------------------------------------------
-4. antigravity: Core chunked editing & zero-fluff engineering protocol.
-5. antigravity-planner: Mandatory Mermaid diagrams & human approval gates.
-6. caveman: JuliusBrussee ultra-compressed token communication (cuts 60-75% output tokens).
-7. session-metrics: Real-time session token cost timeline, cache efficiency & waste analysis.
-8. session-report: Official Anthropic interactive HTML session dashboard.
-9. frontend-design: Anthropic boutique visual design standards (anti-AI slop).
-10. test-driven-development: obra/superpowers: Failing tests before code.
-11. systematic-debugging: 4-phase root cause analysis before making fixes.
-12. verification-before-completion: Requires automated test proof before claims.
-13. web-artifacts-builder: React 18 + Tailwind + shadcn/ui multi-component apps.
-14. xlsx: Excel spreadsheet creation, formulas, and data cleaning.
-15. pdf: PDF table extraction, page merging, and OCR.
-16. docx: Word document formatting, styling, and templates.
+4. caveman: JuliusBrussee ultra-compressed token communication (cuts 60-75% output tokens).
+5. session-metrics: Real-time session token cost timeline, cache efficiency & waste analysis.
+6. session-report: Official Anthropic interactive HTML session dashboard.
+7. frontend-design: Anthropic boutique visual design standards (anti-AI slop).
+8. test-driven-development: obra/superpowers: Scoped Red-Green TDD when test-first requested.
+9. systematic-debugging: 4-phase root cause analysis before making fixes.
+10. verification-before-completion: Requires automated test proof before claims.
+11. web-artifacts-builder: React 18 + Tailwind + shadcn/ui multi-component apps.
+12. xlsx: Excel spreadsheet creation, formulas, and data cleaning.
+13. pdf: PDF table extraction, page merging, and OCR.
+14. docx: Word document formatting, styling, and templates.
 ==========================================================================
 EOF
     read -r -p "Press Enter to return..." dummy || return 0
@@ -227,7 +247,7 @@ while true; do
     echo "  [U] Run Uninstaller"
     echo "  [0] Exit"
     echo "=========================================================================="
-    if ! read -r -p "Select option (0-16, ?, T, C, U): " opt; then
+    if ! read -r -p "Select option (0-14, ?, T, C, U): " opt; then
         exit 0
     fi
 
@@ -245,19 +265,17 @@ while true; do
                 fi
             fi
             ;;
-        4) toggle_skill "antigravity" ;;
-        5) toggle_skill "antigravity-planner" ;;
-        6) toggle_skill "caveman" ;;
-        7) toggle_skill "session-metrics" ;;
-        8) toggle_skill "session-report" ;;
-        9) toggle_skill "frontend-design" ;;
-        10) toggle_skill "test-driven-development" ;;
-        11) toggle_skill "systematic-debugging" ;;
-        12) toggle_skill "verification-before-completion" ;;
-        13) toggle_skill "web-artifacts-builder" ;;
-        14) toggle_skill "xlsx" ;;
-        15) toggle_skill "pdf" ;;
-        16) toggle_skill "docx" ;;
+        4) toggle_skill "caveman" ;;
+        5) toggle_skill "session-metrics" ;;
+        6) toggle_skill "session-report" ;;
+        7) toggle_skill "frontend-design" ;;
+        8) toggle_skill "test-driven-development" ;;
+        9) toggle_skill "systematic-debugging" ;;
+        10) toggle_skill "verification-before-completion" ;;
+        11) toggle_skill "web-artifacts-builder" ;;
+        12) toggle_skill "xlsx" ;;
+        13) toggle_skill "pdf" ;;
+        14) toggle_skill "docx" ;;
         \?) show_guide ;;
         t|T) run_diagnostics ;;
         c|C)

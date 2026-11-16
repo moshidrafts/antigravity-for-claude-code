@@ -8,17 +8,22 @@ echo "==========================================================================
 
 CLAUDE_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_DIR/skills"
+AGENTS_DIR="$CLAUDE_DIR/agents"
 CATALOG_DIR="$CLAUDE_DIR/skills-catalog"
 BIN_DIR="$CLAUDE_DIR/bin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_SKILLS="$SCRIPT_DIR/skills"
+LOCAL_AGENTS="$SCRIPT_DIR/agents"
 
-mkdir -p "$CLAUDE_DIR" "$SKILLS_DIR" "$CATALOG_DIR" "$BIN_DIR"
+mkdir -p "$CLAUDE_DIR" "$SKILLS_DIR" "$AGENTS_DIR" "$CATALOG_DIR" "$BIN_DIR"
 
-echo -n "[1/6] Deploying 14 skills to $SKILLS_DIR and catalog... "
+echo -n "[1/6] Deploying 12 skills and 2 subagents to $CLAUDE_DIR... "
 if [ -d "$LOCAL_SKILLS" ]; then
     cp -r "$LOCAL_SKILLS"/* "$SKILLS_DIR/"
     cp -r "$LOCAL_SKILLS"/* "$CATALOG_DIR/"
+fi
+if [ -d "$LOCAL_AGENTS" ]; then
+    cp -f "$LOCAL_AGENTS"/*.md "$AGENTS_DIR/" 2>/dev/null || true
 fi
 echo "[DONE]"
 
@@ -61,10 +66,24 @@ else
     echo "  -> Global CLAUDE.md deployed successfully."
 fi
 
-echo -n "[3/6] Enabling 1-Hour Prompt Caching (ENABLE_PROMPT_CACHING_1H=1)... "
+echo -n "[3/6] Enabling 1-Hour Prompt Caching (settings.json + env)... "
 export ENABLE_PROMPT_CACHING_1H=1
 grep -q "ENABLE_PROMPT_CACHING_1H" "$HOME/.bashrc" 2>/dev/null || echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.bashrc"
 [ -f "$HOME/.zshrc" ] && (grep -q "ENABLE_PROMPT_CACHING_1H" "$HOME/.zshrc" 2>/dev/null || echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.zshrc")
+if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import json, os
+p = os.path.expanduser("~/.claude/settings.json")
+data = {}
+if os.path.exists(p):
+    try:
+        with open(p, "r", encoding="utf-8") as f: data = json.load(f)
+    except Exception: data = {}
+data["promptCacheTtl"] = "1h"
+data["subagentPromptCacheTtl"] = "1h"
+with open(p, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
+' 2>/dev/null || true
+fi
 echo "[DONE]"
 
 echo -n "[4/6] Registering global 'agy-settings' in PATH... "
@@ -111,10 +130,9 @@ echo "           1. CLAUDE DESKTOP CUSTOM INSTRUCTIONS (COPIED!)                
 echo "=========================================================================="
 echo "+------------------------------------------------------------------------+"
 echo "|  * ZERO CONVERSATIONAL FLUFF (Immediate engineering answers)           |"
-echo "|  * MANDATORY ARTIFACTS (Plans, tasks, and walkthroughs in side panel)  |"
-echo "|  * INTERACTIVE MERMAID DIAGRAMS (Rendered visually, not raw code)      |"
-echo "|  * RIPPLE IMPACT DISCLOSURE (Blast radius check before code changes)   |"
-echo "|  * HALT FOR APPROVAL GATE (Strict stop after planning)                 |"
+echo "|  * READ BEFORE EDITING & RIPPLE CHECK (Trace callers first)            |"
+echo "|  * NATIVE PLAN MODE & SUBAGENTS (No junk .md files in repo roots)      |"
+echo "|  * VERIFY BEFORE COMPLETION (Run tests/builds before claiming done)    |"
 echo "|  * TARGETED CHUNK DIFFS (Never dump entire files)                      |"
 echo "+------------------------------------------------------------------------+"
 
@@ -132,7 +150,7 @@ echo ""
 echo "=========================================================================="
 echo "                    3. SETTINGS & GLOBAL COMMAND                          "
 echo "=========================================================================="
-echo "  * All 14 skills and prompt caching are ENABLED by default."
+echo "  * All 12 skills, 2 subagents, and 1-hour caching are ENABLED by default."
 echo "  * You can now run 'agy-settings' from ANY terminal!"
 echo "  * Or run './settings.sh' anytime from this folder."
 echo "=========================================================================="

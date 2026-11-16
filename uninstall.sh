@@ -23,6 +23,7 @@ BIN_DIR="$CLAUDE_DIR/bin"
 ALL_SKILLS=(
     "antigravity"
     "antigravity-planner"
+    "neural-context"
     "caveman"
     "session-metrics"
     "session-report"
@@ -37,11 +38,12 @@ ALL_SKILLS=(
     "docx"
 )
 
-echo "[1/5] Removing Antigravity skills and catalog..."
+echo "[1/5] Removing Antigravity skills, subagents, and catalog..."
 for s in "${ALL_SKILLS[@]}"; do
     rm -rf "$SKILLS_DIR/$s" 2>/dev/null || true
     rm -rf "$DISABLED_DIR/$s" 2>/dev/null || true
 done
+rm -f "$CLAUDE_DIR/agents/architect.md" "$CLAUDE_DIR/agents/verifier.md" 2>/dev/null || true
 rm -rf "$CATALOG_DIR" 2>/dev/null || true
 
 echo "[2/5] Restoring CLAUDE.md..."
@@ -60,7 +62,7 @@ rm -f "$CLAUDE_DIR/RTK.md" 2>/dev/null || true
 rm -f "$BIN_DIR/agy-settings" 2>/dev/null || true
 rm -f "$BIN_DIR/settings.sh" 2>/dev/null || true
 
-echo "[4/5] Clearing prompt caching variables..."
+echo "[4/5] Clearing prompt caching variables & settings.json keys..."
 remove_line() {
     local pattern="$1"
     local file="$2"
@@ -73,6 +75,26 @@ remove_line() {
 }
 remove_line '/ENABLE_PROMPT_CACHING_1H/d' "$HOME/.bashrc"
 remove_line '/ENABLE_PROMPT_CACHING_1H/d' "$HOME/.zshrc"
+if command -v python3 >/dev/null 2>&1 && [ -f "$CLAUDE_DIR/settings.json" ]; then
+    python3 -c '
+import json, os
+p = os.path.expanduser("~/.claude/settings.json")
+try:
+    with open(p, "r", encoding="utf-8") as f: data = json.load(f)
+except Exception:
+    data = None
+if isinstance(data, dict):
+    data.pop("promptCacheTtl", None)
+    data.pop("subagentPromptCacheTtl", None)
+    hooks = data.get("hooks")
+    if isinstance(hooks, dict) and isinstance(hooks.get("PreToolUse"), list):
+        kept = [e for e in hooks["PreToolUse"] if not any("rtk hook claude" in str(h.get("command", "")) for h in (e.get("hooks") or []))]
+        if kept: hooks["PreToolUse"] = kept
+        else: hooks.pop("PreToolUse", None)
+        if not hooks: data.pop("hooks", None)
+    with open(p, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
+' 2>/dev/null || true
+fi
 
 echo "[5/5] Removing config..."
 rm -f "$CLAUDE_DIR/antigravity.json"

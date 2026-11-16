@@ -1,4 +1,4 @@
-# scripts/settings.ps1
+﻿# scripts/settings.ps1
 # Interactive Settings Manager for Antigravity-Claude Suite
 
 $ErrorActionPreference = "Continue"
@@ -19,8 +19,6 @@ if (-not (Test-Path $catalogDir)) { New-Item -ItemType Directory -Force -Path $c
 if (-not (Test-Path $binDir)) { New-Item -ItemType Directory -Force -Path $binDir | Out-Null }
 
 $allSkillNames = @(
-    "antigravity",
-    "antigravity-planner",
     "caveman",
     "session-metrics",
     "session-report",
@@ -35,13 +33,11 @@ $allSkillNames = @(
 )
 
 $skillSubtitles = @{
-    "antigravity"                    = "Core zero-fluff protocol & targeted chunk-diff rules"
-    "antigravity-planner"            = "Mandatory Mermaid architecture flowcharts & approval gates"
     "caveman"                        = "JuliusBrussee: Ultra-compressed token communication (cuts 60-75% output tokens)"
     "session-metrics"                = "Real-time session token cost timeline, cache efficiency & waste analysis"
     "session-report"                 = "Official Anthropic: Self-contained interactive HTML session dashboard"
     "frontend-design"                = "Anthropic boutique visual design standards (anti-AI slop)"
-    "test-driven-development"        = "obra/superpowers: Enforces failing tests before writing code"
+    "test-driven-development"        = "obra/superpowers: Scoped Red-Green TDD workflow when test-first requested"
     "systematic-debugging"           = "obra/superpowers: 4-phase root cause analysis before fixes"
     "verification-before-completion" = "obra/superpowers: Requires automated test proof before claims"
     "web-artifacts-builder"          = "Anthropic: React 18 + Tailwind + shadcn/ui multi-component apps"
@@ -68,10 +64,23 @@ function Wait-KeyPress {
     }
 }
 
+function Write-JsonNoBom($path, $obj, $depth = 10) {
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($path, ($obj | ConvertTo-Json -Depth $depth), $utf8NoBom)
+}
+
 function Load-Config {
     if (Test-Path $configFile) {
         try {
-            return Get-Content $configFile -Raw | ConvertFrom-Json
+            $loaded = Get-Content $configFile -Raw | ConvertFrom-Json
+            if ($loaded.skills) {
+                foreach ($stale in @("antigravity", "antigravity-planner", "neural-context")) {
+                    if ($loaded.skills.PSObject.Properties[$stale]) {
+                        $loaded.skills.PSObject.Properties.Remove($stale)
+                    }
+                }
+            }
+            return $loaded
         } catch {}
     }
     $cfg = [ordered]@{
@@ -87,7 +96,7 @@ function Load-Config {
 }
 
 function Save-Config($cfg) {
-    $cfg | ConvertTo-Json -Depth 5 | Set-Content $configFile -Encoding UTF8
+    Write-JsonNoBom $configFile $cfg 5
 }
 
 function Sync-SkillsToConfig($cfg) {
@@ -186,6 +195,25 @@ function Toggle-Caching($cfg) {
         [System.Environment]::SetEnvironmentVariable('ENABLE_PROMPT_CACHING_1H', $null, 'User')
         $env:ENABLE_PROMPT_CACHING_1H = $null
     }
+
+    $settingsJson = Join-Path $claudeDir "settings.json"
+    try {
+        $cCfg = if (Test-Path $settingsJson) {
+            $rawCfg = Get-Content $settingsJson -Raw
+            if ([string]::IsNullOrWhiteSpace($rawCfg)) { [pscustomobject]@{} } else { $rawCfg | ConvertFrom-Json }
+        } else {
+            [pscustomobject]@{}
+        }
+        if ($newVal) {
+            $cCfg | Add-Member -NotePropertyName "promptCacheTtl" -NotePropertyValue "1h" -Force
+            $cCfg | Add-Member -NotePropertyName "subagentPromptCacheTtl" -NotePropertyValue "1h" -Force
+        } else {
+            if ($cCfg.PSObject.Properties["promptCacheTtl"]) { $cCfg.PSObject.Properties.Remove("promptCacheTtl") }
+            if ($cCfg.PSObject.Properties["subagentPromptCacheTtl"]) { $cCfg.PSObject.Properties.Remove("subagentPromptCacheTtl") }
+        }
+        Write-JsonNoBom $settingsJson $cCfg 10
+    } catch {}
+
     Save-Config $cfg
 }
 
@@ -219,23 +247,39 @@ function Toggle-RTK($cfg) {
     $settingsJson = Join-Path $claudeDir "settings.json"
     if (Test-Path $settingsJson) {
         try {
-            $cCfg = Get-Content $settingsJson -Raw | ConvertFrom-Json
+            $rawCfg = Get-Content $settingsJson -Raw
+            $cCfg = if ([string]::IsNullOrWhiteSpace($rawCfg)) { [pscustomobject]@{} } else { $rawCfg | ConvertFrom-Json }
             if ($cfg.rtk_proxy) {
                 $hookObj = [pscustomobject]@{
                     matcher = "Bash"
                     hooks = @([pscustomobject]@{ type = "command"; command = "rtk hook claude" })
                 }
-                if ($cCfg.hooks) {
-                    $cCfg.hooks.PreToolUse = @($hookObj)
-                } else {
-                    $cCfg | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([pscustomobject]@{ PreToolUse = @($hookObj) }) -Force
+                if (-not $cCfg.hooks) {
+                    $cCfg | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([pscustomobject]@{}) -Force
                 }
+                $existingPre = @()
+                if ($cCfg.hooks.PreToolUse) {
+                    $existingPre = @($cCfg.hooks.PreToolUse | Where-Object {
+                        -not ($_.hooks -and ($_.hooks | Where-Object { $_.command -like "*rtk hook claude*" }))
+                    })
+                }
+                $cCfg.hooks | Add-Member -NotePropertyName "PreToolUse" -NotePropertyValue @($existingPre + $hookObj) -Force
             } else {
-                if ($cCfg.hooks) {
-                    $cCfg.PSObject.Properties.Remove("hooks")
+                if ($cCfg.hooks -and $cCfg.hooks.PreToolUse) {
+                    $remainingPre = @($cCfg.hooks.PreToolUse | Where-Object {
+                        -not ($_.hooks -and ($_.hooks | Where-Object { $_.command -like "*rtk hook claude*" }))
+                    })
+                    if ($remainingPre.Count -gt 0) {
+                        $cCfg.hooks.PreToolUse = $remainingPre
+                    } else {
+                        $cCfg.hooks.PSObject.Properties.Remove("PreToolUse")
+                    }
+                    if (($cCfg.hooks.PSObject.Properties | Measure-Object).Count -eq 0) {
+                        $cCfg.PSObject.Properties.Remove("hooks")
+                    }
                 }
             }
-            $cCfg | ConvertTo-Json -Depth 10 | Set-Content $settingsJson -Encoding UTF8
+            Write-JsonNoBom $settingsJson $cCfg 10
         } catch {}
     }
     
@@ -250,16 +294,15 @@ function Show-FeatureGuide {
     Write-Host @"
 TOKEN OPTIMIZATIONS & COMPANIONS:
 --------------------------------------------------------------------------
-1. 1-Hour Prompt Caching (ENABLE_PROMPT_CACHING_1H=1)
-   - What it does: Caches system prompts and repository context in server RAM
-     for 1 hour. Subsequent queries in that window cost up to 90% fewer tokens.
-   - When to disable: Only if you are actively editing system prompts in CLAUDE.md
-     and want immediate cache bust on every request.
+1. 1-Hour Prompt Caching (settings.json promptCacheTtl="1h" + ENABLE_PROMPT_CACHING_1H=1)
+   - What it does: Extends prompt cache TTL from 5m to 1h so long breaks do not
+     force full context cache rewrites.
+   - Note: 1h cache writes cost 2x vs 5m's 1.25x; best for API / long-idle sessions.
 
 2. RTK (Rust Token Killer)
    - What it does: Lightweight (<10ms) Rust CLI proxy that intercepts terminal
      commands (git, cargo, pytest, npm) and strips out redundant boilerplate,
-     empty lines, and progress bars.
+     empty lines, and progress bars (safely merged into settings.json hooks).
    - Saves: 60% to 90% of bash output tokens from flooding context.
 
 3. Graphify AST Codebase Graph
@@ -267,50 +310,48 @@ TOKEN OPTIMIZATIONS & COMPANIONS:
      knowledge graph so Claude navigates symbols directly instead of grepping files.
    - Saves: Eliminates repetitive multi-file search turns on larger repos.
 
+NATIVE SUBAGENTS (~/.claude/agents/):
+--------------------------------------------------------------------------
+* architect: Read-only Plan Mode dependency & blast-radius analyst.
+* verifier:  Isolated test, lint, and build verification worker.
+
 BUNDLED SKILLS DIRECTORY:
 --------------------------------------------------------------------------
-4. antigravity: Core high-efficiency coding directives. Enforces targeted chunk
-   edits instead of monolithic file rewrites, zero fluff, and dense formatting.
-
-5. antigravity-planner: Mandates visual Mermaid architecture flowcharts, ripple
-   blast-radius analysis, and strict human approval gates before writing code.
-
-6. caveman: JuliusBrussee/caveman ultra-compressed communication mode.
+4. caveman: JuliusBrussee/caveman ultra-compressed communication mode.
    - What it does: Strips articles (a/an/the), filler, hedging, and pleasantries
      while strictly preserving technical terms, code blocks, exact numbers, and errors.
-   - Saves: 60% to 75% output tokens on conversational turns without sacrificing code accuracy.
-   - Note: Not baby-talk or broken typos; uses Simplified Technical English (ASD-STE100).
+   - Saves: 60% to 75% output tokens on conversational turns without sacrificing accuracy.
 
-7. session-metrics: Real-time token spend, cost timeline, and waste analysis engine.
+5. session-metrics: Real-time token spend, cost timeline, and waste analysis engine.
    - What it does: Runs local python analysis on Claude Code session logs to calculate
-     exact USD cost, cache efficiency rates, and anomaly detection. Zero always-on token cost.
+     exact USD cost, cache efficiency rates, and anomaly detection. Zero always-on cost.
 
-8. session-report: Official Anthropic interactive HTML session dashboard.
+6. session-report: Official Anthropic interactive HTML session dashboard.
    - What it does: Parses transcripts across ~/.claude/projects and generates a self-contained
      interactive HTML dashboard with sortable tables, token bars, and cache-break heatmaps.
 
-9. frontend-design: Anthropic's official design system preventing 'AI slop'
+7. frontend-design: Anthropic's official design system preventing 'AI slop'
    (generic purple gradients, boring cards). Enforces boutique studio aesthetics.
 
-10. test-driven-development: Jesse Vincent's obra/superpowers skill. Forces Claude
-    to write a failing test first, verify the failure, and write minimal code to pass.
+8. test-driven-development: Jesse Vincent's obra/superpowers skill. Runs strict
+   Red-Green TDD when explicitly requested (/test-driven-development or test-first).
 
-11. systematic-debugging: 4-phase root cause analysis (observe, hypothesize, isolate,
-    verify). Eliminates random guessing and symptom-treating hacks.
+9. systematic-debugging: 4-phase root cause analysis (observe, hypothesize, isolate,
+   verify). Eliminates random guessing and symptom-treating hacks.
 
-12. verification-before-completion: Prohibits declaring work 'fixed' or 'complete'
+10. verification-before-completion: Prohibits declaring work 'fixed' or 'complete'
     without executing automated tests or build verification commands first.
 
-13. web-artifacts-builder: Complete multi-component React 18 + Tailwind CSS +
+11. web-artifacts-builder: Complete multi-component React 18 + Tailwind CSS +
     shadcn/ui application builder for rich interactive side-panel artifacts.
 
-14. xlsx: Official Anthropic skill to manipulate real Excel workbooks (.xlsx),
+12. xlsx: Official Anthropic skill to manipulate real Excel workbooks (.xlsx),
     compute formulas, build charts, and clean tabular data without corrupting XML.
 
-15. pdf: Official Anthropic skill to extract tables, split/merge pages, rotate,
+13. pdf: Official Anthropic skill to extract tables, split/merge pages, rotate,
     decrypt, and perform OCR on scanned PDF files.
 
-16. docx: Official Anthropic skill to create and edit professional Word (.docx)
+14. docx: Official Anthropic skill to create and edit professional Word (.docx)
     documents with custom headings, styles, and tables of contents.
 ==========================================================================
 "@ -ForegroundColor Gray
@@ -333,8 +374,16 @@ function Run-Diagnostics {
     }
 
     $cacheVar = [System.Environment]::GetEnvironmentVariable('ENABLE_PROMPT_CACHING_1H', 'User')
-    if ($cacheVar -eq '1') {
-        Write-Host "  [+] 1-Hour Prompt Caching: ACTIVE (ENABLE_PROMPT_CACHING_1H=1)" -ForegroundColor Green
+    $settingsJson = Join-Path $claudeDir "settings.json"
+    $jsonCacheTtl = $false
+    if (Test-Path $settingsJson) {
+        try {
+            $tmpCfg = Get-Content $settingsJson -Raw | ConvertFrom-Json
+            if ($tmpCfg.promptCacheTtl -eq "1h") { $jsonCacheTtl = $true }
+        } catch {}
+    }
+    if ($cacheVar -eq '1' -or $jsonCacheTtl) {
+        Write-Host "  [+] 1-Hour Prompt Caching: ACTIVE (settings.json promptCacheTtl=1h / env)" -ForegroundColor Green
     } else {
         Write-Host "  [!] 1-Hour Prompt Caching: INACTIVE" -ForegroundColor DarkGray
     }
@@ -375,10 +424,17 @@ function Run-Diagnostics {
         if (Test-Path (Join-Path $skillsDir $s)) { $activeCount++ }
         if (Test-Path (Join-Path $disabledDir $s)) { $disabledCount++ }
     }
-    Write-Host "  [+] Active Skills:         $activeCount of $($allSkillNames.Count) enabled" -ForegroundColor Green
+    Write-Host "  [+] Active Skills:         $activeCount of $($allSkillNames.Count) toggled skills (+graphify)" -ForegroundColor Green
     if ($disabledCount -gt 0) {
         Write-Host "  [!] Disabled Skills:       $disabledCount disabled" -ForegroundColor Yellow
     }
+
+    $agentsDir = Join-Path $claudeDir "agents"
+    $agentCount = 0
+    foreach ($ag in @("architect.md", "verifier.md")) {
+        if (Test-Path (Join-Path $agentsDir $ag)) { $agentCount++ }
+    }
+    Write-Host "  [+] Native Subagents:      $agentCount of 2 installed (architect, verifier)" -ForegroundColor Green
 
     $marketplacesJson = Join-Path $claudeDir "plugins\known_marketplaces.json"
     if (Test-Path $marketplacesJson) {
@@ -414,28 +470,14 @@ function Run-Diagnostics {
 
 function Copy-CustomInstructions {
     $instructions = @"
-# ANTIGRAVITY PROTOCOL & ARTIFACT DIRECTIVE
+# ANTIGRAVITY OPERATING SYSTEM DIRECTIVE
 
-Act as an autonomous AI engineer under the Antigravity Protocol:
-
-1. ZERO CONVERSATIONAL FLUFF:
-- Omit pleasantries, conversational intros, and wrap-ups. Keep chat text strictly for 1-2 sentence status updates.
-
-2. RIPPLE IMPACT & MANDATORY ARTIFACTS:
-Never dump long plans, task checklists, or extensive code into chat. Always generate dedicated Artifacts in the side panel:
-- Ripple Check: If a change touches another function/feature, first trace the full picture. Disclose: (1) What is currently there, (2) What intends to change, (3) Why.
-- Phase 1 (Plan): Create an Artifact titled "Implementation Plan: [Feature]". Include file tags ([NEW], [MODIFY], [DELETE]) and verification steps.
-- VISUAL DIAGRAMS: Never output Mermaid diagrams as raw code blocks in chat. Always trigger a dedicated Mermaid Artifact so the visual diagram renders interactively in the side pane.
-- HALT FOR APPROVAL (NO CHAINING): After outputting the Phase 1 plan artifact, you must YIELD THE TURN IMMEDIATELY. Do not generate Phase 2/3 artifacts or write code until I explicitly say "proceed" or "approved".
-- Phase 2 (Tasks): Create an Artifact titled "Task Checklist: [Feature]" with `- [ ]` and `- [x]` checkboxes.
-- Phase 3 (Walkthrough): Create an Artifact titled "Walkthrough: [Feature]" with test verification results.
-
-3. STYLING & FORMATTING STANDARDS:
-- If an explanation exceeds 3 sentences, convert to bullet points, GFM alerts, or a table.
-- Never use the section symbol '§' (silcrow). Use normal numbers (1, 2) or markdown headers.
-- Use Markdown tables for comparisons or multi-attribute specs.
-- Always use language identifiers on code blocks with file paths on line 1.
-- Use targeted chunk edits rather than dumping entire files.
+High-signal engineering discipline:
+- Omit conversational fluff, preambles, and sign-offs. Answer directly.
+- Read target files, callers, and shared contracts before editing. Keep edits targeted.
+- For complex or multi-file work, map dependencies and surface ripple impacts before coding.
+- Verify fixes by running relevant tests, linters, or builds; never claim completion without observed results.
+- Never dump 400-line files for small changes; use targeted chunks or diffs.
 "@
     try {
         Set-Clipboard -Value $instructions
@@ -511,7 +553,7 @@ while ($true) {
     Write-Host "  [0] Exit Settings" -ForegroundColor Gray
     Write-Host "==========================================================================" -ForegroundColor Cyan
 
-    Write-Host -NoNewline "`nSelect an option to toggle (0-16, ?, T, C, U): "
+    Write-Host -NoNewline "`nSelect an option to toggle (0-14, ?, T, C, U): "
     $rawChoice = Read-Host
     if ($rawChoice -eq $null) {
         break
@@ -527,19 +569,17 @@ while ($true) {
         "3" { 
             Toggle-Graphify $cfg
         }
-        "4"  { Toggle-Skill "antigravity" $cfg }
-        "5"  { Toggle-Skill "antigravity-planner" $cfg }
-        "6"  { Toggle-Skill "caveman" $cfg }
-        "7"  { Toggle-Skill "session-metrics" $cfg }
-        "8"  { Toggle-Skill "session-report" $cfg }
-        "9"  { Toggle-Skill "frontend-design" $cfg }
-        "10" { Toggle-Skill "test-driven-development" $cfg }
-        "11" { Toggle-Skill "systematic-debugging" $cfg }
-        "12" { Toggle-Skill "verification-before-completion" $cfg }
-        "13" { Toggle-Skill "web-artifacts-builder" $cfg }
-        "14" { Toggle-Skill "xlsx" $cfg }
-        "15" { Toggle-Skill "pdf" $cfg }
-        "16" { Toggle-Skill "docx" $cfg }
+        "4"  { Toggle-Skill "caveman" $cfg }
+        "5"  { Toggle-Skill "session-metrics" $cfg }
+        "6"  { Toggle-Skill "session-report" $cfg }
+        "7"  { Toggle-Skill "frontend-design" $cfg }
+        "8"  { Toggle-Skill "test-driven-development" $cfg }
+        "9"  { Toggle-Skill "systematic-debugging" $cfg }
+        "10" { Toggle-Skill "verification-before-completion" $cfg }
+        "11" { Toggle-Skill "web-artifacts-builder" $cfg }
+        "12" { Toggle-Skill "xlsx" $cfg }
+        "13" { Toggle-Skill "pdf" $cfg }
+        "14" { Toggle-Skill "docx" $cfg }
         "?"  { Show-FeatureGuide }
         "T"  { Run-Diagnostics }
         "C"  { Copy-CustomInstructions }

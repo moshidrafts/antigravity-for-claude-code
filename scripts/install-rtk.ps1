@@ -49,22 +49,29 @@ try {
     if (Test-Path $rtkExe) {
         & $rtkExe init -g
         
-        # Automatically configure ~/.claude/settings.json if present
+        # Safely merge RTK PreToolUse hook into ~/.claude/settings.json without overwriting existing hooks
         $claudeSettings = Join-Path $claudeDir "settings.json"
         if (Test-Path $claudeSettings) {
             try {
-                $cCfg = Get-Content $claudeSettings -Raw | ConvertFrom-Json
+                $rawJson = Get-Content $claudeSettings -Raw
+                $cCfg = if ([string]::IsNullOrWhiteSpace($rawJson)) { [pscustomobject]@{} } else { $rawJson | ConvertFrom-Json }
                 $hookObj = [pscustomobject]@{
                     matcher = "Bash"
                     hooks = @([pscustomobject]@{ type = "command"; command = "rtk hook claude" })
                 }
-                if ($cCfg.hooks) {
-                    $cCfg.hooks.PreToolUse = @($hookObj)
-                } else {
-                    $cCfg | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([pscustomobject]@{ PreToolUse = @($hookObj) }) -Force
+                if (-not $cCfg.hooks) {
+                    $cCfg | Add-Member -NotePropertyName "hooks" -NotePropertyValue ([pscustomobject]@{}) -Force
                 }
-                $cCfg | ConvertTo-Json -Depth 10 | Set-Content $claudeSettings -Encoding UTF8
-                Write-Host "  -> Automatically patched Claude settings.json with RTK hook." -ForegroundColor Green
+                $existingPre = @()
+                if ($cCfg.hooks.PreToolUse) {
+                    $existingPre = @($cCfg.hooks.PreToolUse | Where-Object {
+                        -not ($_.hooks -and ($_.hooks | Where-Object { $_.command -like "*rtk hook claude*" }))
+                    })
+                }
+                $cCfg.hooks | Add-Member -NotePropertyName "PreToolUse" -NotePropertyValue @($existingPre + $hookObj) -Force
+                $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                [System.IO.File]::WriteAllText($claudeSettings, ($cCfg | ConvertTo-Json -Depth 10), $utf8NoBom)
+                Write-Host "  -> Safely merged RTK hook into Claude settings.json." -ForegroundColor Green
             } catch {
                 Write-Host "  -> Note: Add RTK hook to $claudeSettings manually." -ForegroundColor Gray
             }

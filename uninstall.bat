@@ -33,6 +33,7 @@ $binDir = Join-Path $claudeDir "bin"
 $skillsToRemove = @(
     "antigravity",
     "antigravity-planner",
+    "neural-context",
     "caveman",
     "session-metrics",
     "session-report",
@@ -47,7 +48,10 @@ $skillsToRemove = @(
     "docx"
 )
 
-Write-Host "`n[1/5] Removing Antigravity skills and catalog..." -ForegroundColor Cyan
+$agentsToRemove = @("architect.md", "verifier.md")
+$agentsDir = Join-Path $claudeDir "agents"
+
+Write-Host "`n[1/5] Removing Antigravity skills, subagents, and catalog..." -ForegroundColor Cyan
 foreach ($s in $skillsToRemove) {
     $p1 = Join-Path $skillsDir $s
     $p2 = Join-Path $disabledDir $s
@@ -55,6 +59,10 @@ foreach ($s in $skillsToRemove) {
     if (Test-Path $p1) { Remove-Item -Path $p1 -Recurse -Force; Write-Host "  -> Removed: $s" -ForegroundColor Gray }
     if (Test-Path $p2) { Remove-Item -Path $p2 -Recurse -Force; Write-Host "  -> Removed disabled: $s" -ForegroundColor Gray }
     if (Test-Path $p3) { Remove-Item -Path $p3 -Recurse -Force }
+}
+foreach ($ag in $agentsToRemove) {
+    $ap = Join-Path $agentsDir $ag
+    if (Test-Path $ap) { Remove-Item -Path $ap -Force; Write-Host "  -> Removed subagent: $ag" -ForegroundColor Gray }
 }
 if (Test-Path $catalogDir) { Remove-Item -Path $catalogDir -Recurse -Force }
 
@@ -82,11 +90,39 @@ if (Test-Path $rtkMd) { Remove-Item $rtkMd -Force }
 $settingsJson = Join-Path $claudeDir "settings.json"
 if (Test-Path $settingsJson) {
     try {
-        $cCfg = Get-Content $settingsJson -Raw | ConvertFrom-Json
-        if ($cCfg.hooks) {
-            $cCfg.PSObject.Properties.Remove("hooks")
-            $cCfg | ConvertTo-Json -Depth 10 | Set-Content $settingsJson -Encoding UTF8
-            Write-Host "  -> Removed RTK hook from settings.json." -ForegroundColor Green
+        $rawCfg = Get-Content $settingsJson -Raw
+        if (-not [string]::IsNullOrWhiteSpace($rawCfg)) {
+            $cCfg = $rawCfg | ConvertFrom-Json
+            $modified = $false
+            if ($cCfg.hooks -and $cCfg.hooks.PreToolUse) {
+                $remainingPre = @($cCfg.hooks.PreToolUse | Where-Object {
+                    -not ($_.hooks -and ($_.hooks | Where-Object { $_.command -like "*rtk hook claude*" }))
+                })
+                if ($remainingPre.Count -ne @($cCfg.hooks.PreToolUse).Count) {
+                    $modified = $true
+                    if ($remainingPre.Count -gt 0) {
+                        $cCfg.hooks.PreToolUse = $remainingPre
+                    } else {
+                        $cCfg.hooks.PSObject.Properties.Remove("PreToolUse")
+                    }
+                    if (($cCfg.hooks.PSObject.Properties | Measure-Object).Count -eq 0) {
+                        $cCfg.PSObject.Properties.Remove("hooks")
+                    }
+                    Write-Host "  -> Removed RTK hook from settings.json (preserved custom hooks)." -ForegroundColor Green
+                }
+            }
+            if ($cCfg.PSObject.Properties["promptCacheTtl"]) {
+                $cCfg.PSObject.Properties.Remove("promptCacheTtl")
+                $modified = $true
+            }
+            if ($cCfg.PSObject.Properties["subagentPromptCacheTtl"]) {
+                $cCfg.PSObject.Properties.Remove("subagentPromptCacheTtl")
+                $modified = $true
+            }
+            if ($modified) {
+                $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                [System.IO.File]::WriteAllText($settingsJson, ($cCfg | ConvertTo-Json -Depth 10), $utf8NoBom)
+            }
         }
     } catch {}
 }
@@ -95,9 +131,11 @@ if (Test-Path $settingsJson) {
 $agyBat = Join-Path $binDir "agy-settings.bat"
 $antigravityBat = Join-Path $binDir "antigravity-settings.bat"
 $settingsPs1 = Join-Path $binDir "settings.ps1"
+$neuralBat = Join-Path $binDir "neural-context.bat"
 if (Test-Path $agyBat) { Remove-Item $agyBat -Force }
 if (Test-Path $antigravityBat) { Remove-Item $antigravityBat -Force }
 if (Test-Path $settingsPs1) { Remove-Item $settingsPs1 -Force }
+if (Test-Path $neuralBat) { Remove-Item $neuralBat -Force }
 
 Write-Host "`n[4/5] Removing Prompt Caching Environment Variable..." -ForegroundColor Cyan
 [System.Environment]::SetEnvironmentVariable('ENABLE_PROMPT_CACHING_1H', $null, 'User')

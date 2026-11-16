@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: Use when the user asks for test-driven development (TDD), invokes /test-driven-development, or explicitly requests writing failing tests before implementation code
 ---
 
 # Test-Driven Development (TDD)
@@ -15,16 +15,15 @@ Write the test first. Watch it fail. Write minimal code to pass.
 
 ## When to Use
 
-**Always:**
-- New features
-- Bug fixes
-- Refactoring
-- Behavior changes
+**When practicing TDD or explicitly requested:**
+- New features built test-first
+- Regression-protected bug fixes
+- Core business logic refactors
 
-**Exceptions (ask your human partner):**
-- Throwaway prototypes
-- Generated code
-- Configuration files
+**Exceptions (use normal edit + post-edit test verification instead):**
+- Quick typo, UI, or config tweaks
+- Throwaway prototypes or scripts
+- Exploratory debugging or generated code
 
 Thinking "skip TDD just this once"? Stop. That's rationalization.
 

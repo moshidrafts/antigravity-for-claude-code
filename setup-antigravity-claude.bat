@@ -22,6 +22,7 @@ Write-Host "====================================================================
 $userProfile = [System.Environment]::GetFolderPath('UserProfile')
 $claudeDir = Join-Path $userProfile ".claude"
 $skillsDir = Join-Path $claudeDir "skills"
+$agentsDir = Join-Path $claudeDir "agents"
 $catalogDir = Join-Path $claudeDir "skills-catalog"
 $binDir = Join-Path $claudeDir "bin"
 
@@ -35,21 +36,28 @@ if (-not $scriptDir) {
     }
 }
 $localSkills = Join-Path $scriptDir "skills"
+$localAgents = Join-Path $scriptDir "agents"
 
 # 1. Directories
 New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null
 New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $catalogDir | Out-Null
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
-# 2. Deploy Skills & Catalog
-Write-Host "`n[1/6] Deploying 12 skills to $skillsDir and $catalogDir..." -ForegroundColor Yellow -NoNewline
+# 2. Deploy Skills, Catalog & Subagents
+Write-Host "`n[1/6] Deploying 12 skills and 2 subagents to $claudeDir..." -ForegroundColor Yellow -NoNewline
 if (Test-Path $localSkills) {
     Get-ChildItem -Path $localSkills -Directory | ForEach-Object {
         $target = Join-Path $skillsDir $_.Name
         $catTarget = Join-Path $catalogDir $_.Name
         Copy-Item -Path $_.FullName -Destination $target -Recurse -Force
         Copy-Item -Path $_.FullName -Destination $catTarget -Recurse -Force
+    }
+}
+if (Test-Path $localAgents) {
+    Get-ChildItem -Path $localAgents -Filter "*.md" -File | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $agentsDir $_.Name) -Force
     }
 }
 Write-Host " [DONE]" -ForegroundColor Green
@@ -102,10 +110,23 @@ if (Test-Path $claudeMdDest) {
     Write-Host "  -> Global CLAUDE.md deployed successfully." -ForegroundColor Green
 }
 
-# 4. Prompt Caching
-Write-Host "[3/6] Enabling 1-Hour Prompt Caching (ENABLE_PROMPT_CACHING_1H=1)..." -ForegroundColor Yellow -NoNewline
+# 4. Prompt Caching (Env Var + Native settings.json TTL)
+Write-Host "[3/6] Enabling 1-Hour Prompt Caching (settings.json + env)..." -ForegroundColor Yellow -NoNewline
 [System.Environment]::SetEnvironmentVariable('ENABLE_PROMPT_CACHING_1H', '1', 'User')
 $env:ENABLE_PROMPT_CACHING_1H = '1'
+$settingsJsonPath = Join-Path $claudeDir "settings.json"
+try {
+    $cCfg = if (Test-Path $settingsJsonPath) {
+        $rawCfg = Get-Content $settingsJsonPath -Raw
+        if ([string]::IsNullOrWhiteSpace($rawCfg)) { [pscustomobject]@{} } else { $rawCfg | ConvertFrom-Json }
+    } else {
+        [pscustomobject]@{}
+    }
+    $cCfg | Add-Member -NotePropertyName "promptCacheTtl" -NotePropertyValue "1h" -Force
+    $cCfg | Add-Member -NotePropertyName "subagentPromptCacheTtl" -NotePropertyValue "1h" -Force
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($settingsJsonPath, ($cCfg | ConvertTo-Json -Depth 10), $utf8NoBom)
+} catch {}
 Write-Host " [DONE]" -ForegroundColor Green
 
 # 5. Global CLI Commands (agy-settings & antigravity-settings in PATH)
@@ -136,8 +157,6 @@ if (-not (Test-Path $configFile)) {
         rtk_proxy = $true
         graphify = $true
         skills = [ordered]@{
-            "antigravity" = $true
-            "antigravity-planner" = $true
             "caveman" = $true
             "graphify" = $true
             "session-metrics" = $true
@@ -152,7 +171,8 @@ if (-not (Test-Path $configFile)) {
             "docx" = $true
         }
     }
-    $cfg | ConvertTo-Json -Depth 5 | Set-Content $configFile -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($configFile, ($cfg | ConvertTo-Json -Depth 5), $utf8NoBom)
 }
 
 # 7. Configure Vetted Developer Plugins & Compiler LSPs (if Claude CLI is present)
@@ -183,28 +203,14 @@ if ($claudeCmd) {
 
 # 8. Instructions Copy with Safety
 $instructions = @"
-# ANTIGRAVITY PROTOCOL & ARTIFACT DIRECTIVE
+# ANTIGRAVITY OPERATING SYSTEM DIRECTIVE
 
-Act as an autonomous AI engineer under the Antigravity Protocol:
-
-1. ZERO CONVERSATIONAL FLUFF:
-- Omit pleasantries, conversational intros, and wrap-ups. Keep chat text strictly for 1-2 sentence status updates.
-
-2. RIPPLE IMPACT & MANDATORY ARTIFACTS:
-Never dump long plans, task checklists, or extensive code into chat. Always generate dedicated Artifacts in the side panel:
-- Ripple Check: If a change touches another function/feature, first trace the full picture. Disclose: (1) What is currently there, (2) What intends to change, (3) Why.
-- Phase 1 (Plan): Create an Artifact titled "Implementation Plan: [Feature]". Include file tags ([NEW], [MODIFY], [DELETE]) and verification steps.
-- VISUAL DIAGRAMS: Never output Mermaid diagrams as raw code blocks in chat. Always trigger a dedicated Mermaid Artifact so the visual diagram renders interactively in the side pane.
-- HALT FOR APPROVAL (NO CHAINING): After outputting the Phase 1 plan artifact, you must YIELD THE TURN IMMEDIATELY. Do not generate Phase 2/3 artifacts or write code until I explicitly say "proceed" or "approved".
-- Phase 2 (Tasks): Create an Artifact titled "Task Checklist: [Feature]" with `- [ ]` and `- [x]` checkboxes.
-- Phase 3 (Walkthrough): Create an Artifact titled "Walkthrough: [Feature]" with test verification results.
-
-3. STYLING & FORMATTING STANDARDS:
-- If an explanation exceeds 3 sentences, convert to bullet points, GFM alerts, or a table.
-- Never use the section symbol '§' (silcrow). Use normal numbers (1, 2) or markdown headers.
-- Use Markdown tables for comparisons or multi-attribute specs.
-- Always use language identifiers on code blocks with file paths on line 1.
-- Use targeted chunk edits rather than dumping entire files.
+High-signal engineering discipline:
+- Omit conversational fluff, preambles, and sign-offs. Answer directly.
+- Read target files, callers, and shared contracts before editing. Keep edits targeted.
+- For complex or multi-file work, map dependencies and surface ripple impacts before coding.
+- Verify fixes by running relevant tests, linters, or builds; never claim completion without observed results.
+- Never dump 400-line files for small changes; use targeted chunks or diffs.
 "@
 
 try {
@@ -224,10 +230,9 @@ Write-Host @"
 +------------------------------------------------------------------------+
 |                                                                        |
 |  * ZERO CONVERSATIONAL FLUFF (Immediate engineering answers)           |
-|  * MANDATORY ARTIFACTS (Plans, tasks, and walkthroughs in side panel)  |
-|  * INTERACTIVE MERMAID DIAGRAMS (Rendered visually, not raw code)      |
-|  * RIPPLE IMPACT DISCLOSURE (Blast radius check before code changes)   |
-|  * HALT FOR APPROVAL GATE (Strict stop after planning)                 |
+|  * READ BEFORE EDITING & RIPPLE CHECK (Trace callers first)            |
+|  * NATIVE PLAN MODE & SUBAGENTS (No junk .md files in repo roots)      |
+|  * VERIFY BEFORE COMPLETION (Run tests/builds before claiming done)    |
 |  * TARGETED CHUNK DIFFS (Never dump entire files)                      |
 |                                                                        |
 +------------------------------------------------------------------------+
@@ -251,7 +256,7 @@ Write-Host "  5. Open your terminal, run 'claude', and start building!" -Foregro
 Write-Host "`n==========================================================================" -ForegroundColor Cyan
 Write-Host "                    3. SETTINGS & GLOBAL COMMAND                          " -ForegroundColor Cyan
 Write-Host "==========================================================================" -ForegroundColor Cyan
-Write-Host "  * All 12 skills and 1-hour prompt caching are ENABLED by default." -ForegroundColor Green
+Write-Host "  * All 12 skills, 2 subagents, and 1-hour caching are ENABLED by default." -ForegroundColor Green
 Write-Host "  * You can now run 'agy-settings' from ANY terminal on your computer!" -ForegroundColor Yellow
 Write-Host "  * Or run 'settings.bat' right here in this folder." -ForegroundColor Gray
 Write-Host "==========================================================================" -ForegroundColor Cyan

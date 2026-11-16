@@ -1,6 +1,6 @@
 # 🚀 Antigravity Protocol for Claude Code (1-Click Suite)
 
-> **Supercharge Claude Code and Claude Desktop with Google Antigravity discipline.** Save 70%+ tokens, eliminate conversational fluff, force visual Mermaid architecture diagrams, auto-map codebases with Graphify AST graphs, and mandate approval gates before editing code.
+> **Supercharge Claude Code v2.1+ with lean engineering discipline.** Cut 60–90% terminal and output noise with RTK and Caveman, map large repos with Graphify AST graphs, delegate isolated analysis to native subagents (`architect` & `verifier`), and enforce zero-fluff verification without fighting Claude's native Plan Mode or Auto-Memory.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: Windows | macOS | Linux](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#-1-click-installation)
@@ -13,11 +13,10 @@
 
 | Standard Claude Experience ❌ | With Antigravity Protocol ✅ |
 | :--- | :--- |
-| **Conversational Fluff:** Starts with *"Sure, I'd be happy to help!"* and ends with *"Hope this helps!"*. | **Zero Fluff:** Immediate, raw, copy-paste-ready engineering outputs. |
-| **Chat Stream Pollution:** Dumps 400 lines of messy code directly into your chat. | **Mandatory Artifacts:** Isolates plans, tasks, and walkthroughs in the side pane. |
-| **Silent Breakages:** Modifies connected functions without warning or explanation. | **Ripple Impact Disclosure:** Explains what is there, what changes, and why before touching code. |
-| **Monolithic Dumps:** Rewrites entire files for a 3-line change, exhausting tokens. | **Targeted Chunk Diffs:** Edits only the exact line ranges. |
-| **Raw Code Blocks:** Outputs Mermaid syntax as unrendered text. | **Interactive Diagrams:** Mandates visual architecture diagrams with Mermaid and SVG. |
+| **Conversational Fluff:** Starts with *"Sure, I'd be happy to help!"* and ends with *"Hope this helps!"*. | **Zero Fluff:** Immediate, direct engineering answers and surgical edits. |
+| **Repo Clutter & Conflicting Rules:** Legacy directives dump leftover `.md` files and fight native Plan Mode. | **Native v2.1 Alignment:** Works cleanly with `Shift+Tab` `/plan`, `autoMode`, `advisorModel`, and built-in Auto-Memory. |
+| **Silent Breakages:** Modifies connected functions without checking callers or running tests. | **Native Subagents:** Delegates read-only dependency tracing to `architect` and test checks to `verifier`. |
+| **Noisy Bash Logs:** `git`, `pytest`, and `npm` logs flood context with progress bars and boilerplate. | **RTK CLI Compression:** Strips bash boilerplate safely in `settings.json` hooks (60–90% token savings). |
 | **Blind Grepping:** Burns tokens reading files line-by-line across large repositories. | **AST Knowledge Graphs:** Pre-maps code symbols and relationships via Tree-sitter (`graphify`). |
 
 ---
@@ -31,12 +30,13 @@
    ```
    2. Double-click **`setup-antigravity-claude.bat`**.
 3. **What happens automatically:**
-   - Deploys all 14 skills to `~/.claude/skills/` and stores an offline copy in `~/.claude/skills-catalog/`.
-   - Injects the global `CLAUDE.md` operating directive. *(If you already have an existing `CLAUDE.md`, the installer will ask whether to **[O]verwrite** with a `.bak` backup, **[A]ppend**, or **[C]ancel**!)*
+   - Deploys all **12 clean skills** to `~/.claude/skills/` and stores an offline catalog in `~/.claude/skills-catalog/`.
+   - Deploys **2 native subagents** (`architect`, `verifier`) to `~/.claude/agents/`.
+   - Injects the lean (<30 line) global `CLAUDE.md` operating directive. *(If you already have an existing `CLAUDE.md`, the installer asks whether to **[O]verwrite** with a `.bak` backup, **[A]ppend**, or **[C]ancel**!)*
    - Registers the global **`agy-settings`** CLI command in your PATH.
-   - Automatically activates **1-Hour Prompt Caching** (`ENABLE_PROMPT_CACHING_1H=1`).
-   - Automatically links **Graphify AST Graph** (`graphify.exe`) into your PATH if Python is present.
-   - Copies Custom Instructions to your clipboard and prints next steps clearly in your terminal!
+   - Enables **1-Hour Prompt Caching** via native `settings.json` (`"promptCacheTtl": "1h"`, `"subagentPromptCacheTtl": "1h"`) and `ENABLE_PROMPT_CACHING_1H=1`.
+   - Links **Graphify AST Graph** (`graphify.exe`) into your PATH if Python is present.
+   - Copies lean Custom Instructions to your clipboard for Claude Desktop/Web!
 4. Open **Claude Desktop** $\rightarrow$ **Settings** $\rightarrow$ **Custom Instructions** and press <kbd>Ctrl</kbd> + <kbd>V</kbd>.
 
 ### macOS & Linux (1-Line Command)
@@ -66,31 +66,27 @@ Once installed, simply type **`agy-settings`** from **any terminal on your PC** 
 
  ------------------------------------------------------------------------
  BUNDLED SKILLS DIRECTORY:
-  [ 4] antigravity                    [ ENABLED  ]
-      |-- Core zero-fluff protocol & targeted chunk-diff rules
-  [ 5] antigravity-planner            [ ENABLED  ]
-      |-- Mandatory Mermaid architecture flowcharts & approval gates
-  [ 6] caveman                        [ ENABLED  ]
+  [ 4] caveman                        [ ENABLED  ]
       |-- JuliusBrussee: Ultra-compressed token communication (cuts 60-75% output tokens)
-  [ 7] session-metrics                [ ENABLED  ]
+  [ 5] session-metrics                [ ENABLED  ]
       |-- Real-time session token cost timeline, cache efficiency & waste analysis
-  [ 8] session-report                 [ ENABLED  ]
+  [ 6] session-report                 [ ENABLED  ]
       |-- Official Anthropic: Self-contained interactive HTML session dashboard
-  [ 9] frontend-design                [ ENABLED  ]
+  [ 7] frontend-design                [ ENABLED  ]
       |-- Anthropic boutique visual design standards (anti-AI slop)
-  [10] test-driven-development        [ ENABLED  ]
-      |-- obra/superpowers: Enforces failing tests before writing code
-  [11] systematic-debugging           [ ENABLED  ]
+  [ 8] test-driven-development        [ ENABLED  ]
+      |-- obra/superpowers: Scoped Red-Green TDD workflow when test-first requested
+  [ 9] systematic-debugging           [ ENABLED  ]
       |-- obra/superpowers: 4-phase root cause analysis before fixes
-  [12] verification-before-completion [ ENABLED  ]
+  [10] verification-before-completion [ ENABLED  ]
       |-- obra/superpowers: Requires automated test proof before claims
-  [13] web-artifacts-builder          [ ENABLED  ]
+  [11] web-artifacts-builder          [ ENABLED  ]
       |-- Anthropic: React 18 + Tailwind + shadcn/ui multi-component apps
-  [14] xlsx                           [ ENABLED  ]
+  [12] xlsx                           [ ENABLED  ]
       |-- Anthropic: Native Excel spreadsheet creation, formulas & data
-  [15] pdf                            [ ENABLED  ]
+  [13] pdf                            [ ENABLED  ]
       |-- Anthropic: PDF text/table extraction, page merging & OCR
-  [16] docx                           [ ENABLED  ]
+  [14] docx                           [ ENABLED  ]
       |-- Anthropic: Word document formatting, styling & template generator
 
  ------------------------------------------------------------------------
@@ -125,50 +121,14 @@ Here is the complete breakdown of every optimization, companion tool, bundled sk
 
 ---
 
-### ⚡ Interactive Command Center (14 Native Skills)
+### ⚡ Interactive Command Center (12 Native Skills & 2 Subagents)
 
-All 14 native skills are installed directly into your `~/.claude/skills/` directory and can be toggled anytime via `agy-settings`. 
+All **12 native skills** are installed into `~/.claude/skills/` (toggled via `agy-settings`), and **2 native subagents** (`architect`, `verifier`) are installed into `~/.claude/agents/` so Claude Code v2.1+ can delegate heavy research and test verification in isolated context windows.
 
 > [!TIP]
-> **Click any slash command below to interactively expand its triggers, behavioral impact, before/after examples, and token savings!**
+> **Click any slash command below to interactively expand its triggers, behavioral impact, and token savings!**
 
-#### 🏗️ Domain 1: Architectural Control & Token Compression
-
-<details>
-<summary><b>/antigravity</b> — High-Density Engineering & Chunk Diffs <i>(Always Active / Invoke via /antigravity)</i></summary>
-<br>
-
-* **Trigger**: Automatic across all coding queries, or invoke via `/antigravity` (or `@antigravity`).
-* **The Problem It Solves**: Standard Claude rewrites entire 400-line files to change 2 lines, burning thousands of output tokens and introducing silent syntax regressions. It also writes conversational preambles (*"I understand you want to..."*).
-* **Under The Hood**:
-  1. **Zero Pleasantries**: Strictly bans conversational filler, pleasantries, and sign-offs.
-  2. **Targeted Chunk Diffs**: Mandates surgical replacement chunks with exact start/end line anchors. Never dumps full files.
-  3. **High-Density Formatting**: Enforces GFM alerts, tables, and concise code blocks.
-* **Token Impact**: ⚡ **70–85% token reduction on code edits.**
-
-```diff
-// Standard Claude (Wastes 300+ tokens outputting unchanged code):
-// [300 lines of existing file dumped into chat...]
-
-// With Antigravity Protocol (Surgical chunk edit):
-@@ -42,3 +42,3 @@
-- const timeout = 5000;
-+ const timeout = 15000;
-```
-</details>
-
-<details>
-<summary><b>/antigravity-planner</b> — Mermaid Visuals & Approval Gates <i>(Always Active / Invoke via /antigravity-planner)</i></summary>
-<br>
-
-* **Trigger**: Automatic on multi-file refactors and new features, or invoke directly via `/antigravity-planner`.
-* **The Problem It Solves**: LLMs hallucinate dependencies, blindly modify functions without checking what touches them, and output raw unrendered Mermaid code blocks.
-* **Under The Hood**:
-  1. **Ripple Impact Check**: Discloses (1) What is currently there, (2) What intends to change, (3) Why.
-  2. **Interactive Visual Architecture**: Forces Mermaid flowcharts and state diagrams to render in dedicated side pane artifacts.
-  3. **HALT FOR APPROVAL (No Chaining)**: Claude yields its turn immediately after the Phase 1 plan artifact and **waits for your explicit approval** before touching a single line of code.
-* **Reliability Impact**: 🛡️ **Zero runaway code generation; 100% architectural transparency.**
-</details>
+#### 🏗️ Domain 1: Token Compression & Codebase Graphs
 
 <details>
 <summary><b>/caveman</b> — Ultra-Compressed Shorthand Mode <i>(Trigger: /caveman [full|ultra|lite|stop])</i></summary>
@@ -233,10 +193,10 @@ All 14 native skills are installed directly into your `~/.claude/skills/` direct
 #### 🛡️ Domain 3: Rigorous Engineering Verification
 
 <details>
-<summary><b>/test-driven-development</b> — True Red/Green TDD <i>(Trigger: /test-driven-development)</i></summary>
+<summary><b>/test-driven-development</b> — Scoped Red/Green TDD <i>(Trigger: /test-driven-development or test-first requests)</i></summary>
 <br>
 
-* **Trigger**: Writing new features, bug fixes, or unit tests (`/test-driven-development`).
+* **Trigger**: Explicitly invoking `/test-driven-development` or requesting test-first TDD (quick fixes and exploratory edits remain unblocked).
 * **Source**: [obra/superpowers](https://github.com/obra/superpowers)
 * **The Problem It Solves**: AI writes implementation code first, then writes confirmation-bias tests that test the implementation rather than the requirements (or mocks everything).
 * **Under The Hood**:
@@ -331,6 +291,17 @@ All 14 native skills are installed directly into your `~/.claude/skills/` direct
 
 ---
 
+### 🤖 Native Claude Code Subagents (2 Workers)
+
+Installed into `~/.claude/agents/` for isolated execution without polluting your main context window:
+
+| Subagent | Permission & Tools | Role |
+| :--- | :--- | :--- |
+| **`architect`** | `plan` (Read-only: `Read`, `Grep`, `Glob`) | Maps callers, dependency graphs, and blast radius before complex edits without creating junk `.md` files. |
+| **`verifier`** | `Read`, `Grep`, `Glob`, `Bash` | Runs test suites, linters, typecheckers, or builds in an isolated context and reports factual pass/fail evidence. |
+
+---
+
 ### 🚀 Vetted Developer Plugins & Compiler LSPs (10 Tools)
 
 Unlike third-party plugin packs that inject thousands of always-on tokens into every prompt and spam your slash (`/`) autocomplete menu with noisy colon-prefixed commands, the suite automatically provisions 10 vetted, clean developer tools:
@@ -358,12 +329,12 @@ Unlike third-party plugin packs that inject thousands of always-on tokens into e
 ## 💡 Automated Token-Saving Companions & Hacks
 
 ### 1. 1-Hour Prompt Caching (Automated)
-Both `setup-antigravity-claude.bat` and `install.sh` automatically set `ENABLE_PROMPT_CACHING_1H=1`. Anthropic keeps your system prompts and repository context cached in memory for 1 hour, saving up to 90% on subsequent prompt tokens.
+Both `setup-antigravity-claude.bat` and `install.sh` configure `"promptCacheTtl": "1h"` and `"subagentPromptCacheTtl": "1h"` in `~/.claude/settings.json` alongside `ENABLE_PROMPT_CACHING_1H=1` so context survives longer breaks without full cache rewrites. *(Note: 1h cache writes carry a 2× base input cost vs. 5m's 1.25×; best for API and long-idle workflows.)*
 
 ### 2. RTK (Rust Token Killer) Integration
 [RTK](https://github.com/rtk-ai/rtk) is a high-speed CLI proxy that strips boilerplate and progress bar noise from bash tools (`git`, `cargo`, `pytest`, etc.), reducing token consumption by 60–90%.
 - **1-Click Install:** Run `scripts/install-rtk.ps1` (or `./scripts/install-rtk.sh` on Unix), or select option `[2]` inside `settings.bat`.
-- Automatically configures Claude Code hooks in `~/.claude/settings.json`.
+- Safely merges its `PreToolUse` Bash hook into `~/.claude/settings.json` without overwriting existing hooks.
 
 ### 3. Graphify AST Codebase Knowledge Graph
 [Graphify](https://github.com/Graphify-Labs/graphify) parses codebases into Tree-sitter AST relationships (call graphs, imports, class hierarchies) so Claude queries symbols directly:
@@ -382,14 +353,14 @@ Need to revert? Double-click `uninstall.bat` or run `./uninstall.sh`. It safely 
 
 ---
 
-## 🧠 The 4-Phase Artifact Lifecycle
+## 🧠 Native Claude Code v2.1+ Workflow
 
 ```mermaid
 graph TD
-    A[Phase 1: Silent Research & Dependency Trace] --> B[Phase 2: implementation_plan.md]
-    B --> C{APPROVAL GATE: Yield Turn & Wait}
-    C -->|User Approves| D[Phase 3: Live Execution via task.md]
-    D --> E[Phase 4: Test Verification & walkthrough.md]
+    A["1. Native Plan Mode (/plan or Shift+Tab)"] --> B["architect subagent traces callers & blast radius"]
+    B --> C{"User Approves Plan"}
+    C -->|"Approved"| D["Targeted Edits via native Edit tool + Auto-Memory"]
+    D --> E["verifier subagent runs tests, lint & build checks"]
 ```
 
 ---
