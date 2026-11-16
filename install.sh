@@ -18,6 +18,9 @@ LOCAL_AGENTS="$SCRIPT_DIR/agents"
 mkdir -p "$CLAUDE_DIR" "$SKILLS_DIR" "$AGENTS_DIR" "$CATALOG_DIR" "$BIN_DIR"
 
 echo -n "[1/6] Deploying 12 skills and 2 subagents to $CLAUDE_DIR... "
+for legacy in "antigravity" "antigravity-planner" "neural-context"; do
+    rm -rf "$SKILLS_DIR/$legacy" "$CATALOG_DIR/$legacy" "$CLAUDE_DIR/skills-disabled/$legacy" 2>/dev/null || true
+done
 if [ -d "$LOCAL_SKILLS" ]; then
     cp -r "$LOCAL_SKILLS"/* "$SKILLS_DIR/"
     cp -r "$LOCAL_SKILLS"/* "$CATALOG_DIR/"

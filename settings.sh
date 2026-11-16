@@ -152,8 +152,12 @@ run_diagnostics() {
         echo -e "  \033[33m[!]\033[0m Claude Code CLI:       Not found in PATH"
     fi
 
-    if [ "$ENABLE_PROMPT_CACHING_1H" = "1" ]; then
-        echo -e "  \033[32m[+]\033[0m 1-Hour Prompt Caching: ACTIVE (ENABLE_PROMPT_CACHING_1H=1)"
+    local json_cache=""
+    if [ -f "$CLAUDE_DIR/settings.json" ] && grep -q '"promptCacheTtl"[[:space:]]*:[[:space:]]*"1h"' "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+        json_cache="1h"
+    fi
+    if [ "$ENABLE_PROMPT_CACHING_1H" = "1" ] || [ "$json_cache" = "1h" ]; then
+        echo -e "  \033[32m[+]\033[0m 1-Hour Prompt Caching: ACTIVE (settings.json promptCacheTtl=1h / env)"
     else
         echo -e "  \033[90m[!]\033[0m 1-Hour Prompt Caching: INACTIVE"
     fi
@@ -180,7 +184,13 @@ run_diagnostics() {
     for s in "${ALL_SKILLS[@]}"; do
         [ -d "$SKILLS_DIR/$s" ] && ((activeCount++))
     done
-    echo -e "  \033[32m[+]\033[0m Active Skills:         $activeCount/${#ALL_SKILLS[@]} enabled"
+    echo -e "  \033[32m[+]\033[0m Active Skills:         $activeCount/${#ALL_SKILLS[@]} toggled skills (+graphify)"
+
+    agentCount=0
+    for ag in "architect.md" "verifier.md"; do
+        [ -f "$CLAUDE_DIR/agents/$ag" ] && ((agentCount++))
+    done
+    echo -e "  \033[32m[+]\033[0m Native Subagents:      $agentCount/2 installed (architect, verifier)"
 
     if command -v claude >/dev/null 2>&1; then
         mCount=$(claude plugin marketplace list 2>&1 | grep -c "^  >" || true)

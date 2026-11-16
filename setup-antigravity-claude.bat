@@ -45,8 +45,19 @@ New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $catalogDir | Out-Null
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
-# 2. Deploy Skills, Catalog & Subagents
+# 2. Deploy Skills, Catalog & Subagents (clean up retired legacy skills on upgrade)
 Write-Host "`n[1/6] Deploying 12 skills and 2 subagents to $claudeDir..." -ForegroundColor Yellow -NoNewline
+$disabledDir = Join-Path $claudeDir "skills-disabled"
+foreach ($legacySkill in @("antigravity", "antigravity-planner", "neural-context")) {
+    foreach ($base in @($skillsDir, $catalogDir, $disabledDir)) {
+        $legacyPath = Join-Path $base $legacySkill
+        if (Test-Path $legacyPath) { Remove-Item -Path $legacyPath -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+$legacyBat = Join-Path $binDir "neural-context.bat"
+$legacyDb = Join-Path $claudeDir "neural_memory.db"
+if (Test-Path $legacyBat) { Remove-Item -Path $legacyBat -Force -ErrorAction SilentlyContinue }
+if (Test-Path $legacyDb) { Remove-Item -Path $legacyDb -Force -ErrorAction SilentlyContinue }
 if (Test-Path $localSkills) {
     Get-ChildItem -Path $localSkills -Directory | ForEach-Object {
         $target = Join-Path $skillsDir $_.Name
@@ -149,8 +160,9 @@ if ($env:PATH -notlike "*$binDir*") {
 }
 Write-Host " [DONE]" -ForegroundColor Green
 
-# 6. Default Config JSON
+# 6. Default Config JSON (create or strip retired keys on upgrade)
 $configFile = Join-Path $claudeDir "antigravity.json"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 if (-not (Test-Path $configFile)) {
     $cfg = [ordered]@{
         prompt_caching_1h = $true
@@ -171,8 +183,23 @@ if (-not (Test-Path $configFile)) {
             "docx" = $true
         }
     }
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($configFile, ($cfg | ConvertTo-Json -Depth 5), $utf8NoBom)
+} else {
+    try {
+        $existingCfg = Get-Content $configFile -Raw | ConvertFrom-Json
+        if ($existingCfg.skills) {
+            $changed = $false
+            foreach ($stale in @("antigravity", "antigravity-planner", "neural-context")) {
+                if ($existingCfg.skills.PSObject.Properties[$stale]) {
+                    $existingCfg.skills.PSObject.Properties.Remove($stale)
+                    $changed = $true
+                }
+            }
+            if ($changed) {
+                [System.IO.File]::WriteAllText($configFile, ($existingCfg | ConvertTo-Json -Depth 5), $utf8NoBom)
+            }
+        }
+    } catch {}
 }
 
 # 7. Configure Vetted Developer Plugins & Compiler LSPs (if Claude CLI is present)
