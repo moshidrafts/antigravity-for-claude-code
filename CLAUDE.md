@@ -18,3 +18,9 @@ High-signal engineering discipline for Claude Code. Keep responses direct, verif
 - Defer to repository-local `./CLAUDE.md` rules when they conflict with global defaults.
 - When RTK is enabled (`rtk hook claude`), terminal outputs are filtered automatically; run `rtk proxy <cmd>` if raw stdout is required for debugging.
 - When `/graphify` is invoked or `graphify-out/graph.json` is present, consult the `graphify` skill for AST graph queries.
+
+## Compact instructions
+When compacting, always preserve:
+- Exact file paths, function names, and recent code changes
+- Failing test outputs, error traces, and verification commands run
+- Architectural decisions, unresolved TODOs, and user preferences stated in this session
