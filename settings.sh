@@ -192,6 +192,13 @@ run_diagnostics() {
     done
     echo -e "  \033[32m[+]\033[0m Native Subagents:      $agentCount/2 installed (architect, verifier)"
 
+    if [ -f "$CLAUDE_DIR/output-styles/simple-english.md" ] && grep -q '"outputStyle"[[:space:]]*:[[:space:]]*"Simple English"' "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+        echo -e "  \033[32m[+]\033[0m Output Style:          Simple English (ACTIVE)"
+    fi
+    if grep -q '"advisorModel"' "$CLAUDE_DIR/settings.json" 2>/dev/null; then
+        echo -e "  \033[32m[+]\033[0m Advisor Model:         Configured in settings.json"
+    fi
+
     if command -v claude >/dev/null 2>&1; then
         mCount=$(claude plugin marketplace list 2>&1 | grep -c "^  >" || true)
         echo -e "  \033[32m[+]\033[0m Claude Marketplaces:   $mCount configured"

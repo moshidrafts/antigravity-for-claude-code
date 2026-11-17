@@ -64,6 +64,11 @@ foreach ($ag in $agentsToRemove) {
     $ap = Join-Path $agentsDir $ag
     if (Test-Path $ap) { Remove-Item -Path $ap -Force; Write-Host "  -> Removed subagent: $ag" -ForegroundColor Gray }
 }
+$simpleEnglishStyle = Join-Path $claudeDir "output-styles\simple-english.md"
+if (Test-Path $simpleEnglishStyle) {
+    Remove-Item -Path $simpleEnglishStyle -Force
+    Write-Host "  -> Removed output style: simple-english.md" -ForegroundColor Gray
+}
 if (Test-Path $catalogDir) { Remove-Item -Path $catalogDir -Recurse -Force }
 
 Write-Host "`n[2/5] Restoring CLAUDE.md..." -ForegroundColor Cyan
@@ -117,6 +122,14 @@ if (Test-Path $settingsJson) {
             }
             if ($cCfg.PSObject.Properties["subagentPromptCacheTtl"]) {
                 $cCfg.PSObject.Properties.Remove("subagentPromptCacheTtl")
+                $modified = $true
+            }
+            if ($cCfg.outputStyle -eq "Simple English") {
+                $cCfg.PSObject.Properties.Remove("outputStyle")
+                $modified = $true
+            }
+            if ($cCfg.advisorModel -eq "fable") {
+                $cCfg.PSObject.Properties.Remove("advisorModel")
                 $modified = $true
             }
             if ($modified) {

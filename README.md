@@ -13,8 +13,8 @@
 
 | Standard Claude Experience ❌ | With Antigravity Protocol ✅ |
 | :--- | :--- |
-| **Conversational Fluff:** Starts with *"Sure, I'd be happy to help!"* and ends with *"Hope this helps!"*. | **Zero Fluff:** Immediate, direct engineering answers and surgical edits. |
-| **Repo Clutter & Conflicting Rules:** Legacy directives dump leftover `.md` files and fight native Plan Mode. | **Native v2.1 Alignment:** Works cleanly with `Shift+Tab` `/plan`, `autoMode`, `advisorModel`, and built-in Auto-Memory. |
+| **Conversational Fluff:** Starts with *"Sure, I'd be happy to help!"* and ends with *"Hope this helps!"*. | **Simple English + Zero Fluff:** Plain everyday language (via custom `Simple English` output style) with zero corporate filler. |
+| **Repo Clutter & Conflicting Rules:** Legacy directives dump leftover `.md` files and fight native Plan Mode. | **Native v2.1 Alignment:** Works cleanly with `Shift+Tab` `/plan`, `autoMode`, `advisorModel` (`fable`), `Compact instructions`, and built-in Auto-Memory. |
 | **Silent Breakages:** Modifies connected functions without checking callers or running tests. | **Native Subagents:** Delegates read-only dependency tracing to `architect` and test checks to `verifier`. |
 | **Noisy Bash Logs:** `git`, `pytest`, and `npm` logs flood context with progress bars and boilerplate. | **RTK CLI Compression:** Strips bash boilerplate safely in `settings.json` hooks (60–90% token savings). |
 | **Blind Grepping:** Burns tokens reading files line-by-line across large repositories. | **AST Knowledge Graphs:** Pre-maps code symbols and relationships via Tree-sitter (`graphify`). |
@@ -31,13 +31,13 @@
    2. Double-click **`setup-antigravity-claude.bat`**.
 3. **What happens automatically:**
    - Deploys all **12 clean skills** to `~/.claude/skills/` and stores an offline catalog in `~/.claude/skills-catalog/`.
-   - Deploys **2 native subagents** (`architect`, `verifier`) to `~/.claude/agents/`.
-   - Injects the lean (<30 line) global `CLAUDE.md` operating directive. *(If you already have an existing `CLAUDE.md`, the installer asks whether to **[O]verwrite** with a `.bak` backup, **[A]ppend**, or **[C]ancel**!)*
+   - Deploys **2 native subagents** (`architect`, `verifier`) to `~/.claude/agents/` and the **Simple English** output style to `~/.claude/output-styles/`.
+   - Injects the lean (<30 line) global `CLAUDE.md` operating directive (with safe prompt & `.bak` backup if customized).
    - Registers the global **`agy-settings`** CLI command in your PATH.
-   - Enables **1-Hour Prompt Caching** via native `settings.json` (`"promptCacheTtl": "1h"`, `"subagentPromptCacheTtl": "1h"`) and `ENABLE_PROMPT_CACHING_1H=1`.
+   - Configures native `settings.json` defaults: **1-Hour Prompt Caching** (`"promptCacheTtl": "1h"`, `"subagentPromptCacheTtl": "1h"` + `ENABLE_PROMPT_CACHING_1H=1`), **`Simple English`** output style, **`advisorModel: "fable"`**, Desktop notifications, and community marketplaces.
    - Links **Graphify AST Graph** (`graphify.exe`) into your PATH if Python is present.
-   - Copies lean Custom Instructions to your clipboard for Claude Desktop/Web!
-4. Open **Claude Desktop** $\rightarrow$ **Settings** $\rightarrow$ **Custom Instructions** and press <kbd>Ctrl</kbd> + <kbd>V</kbd>.
+   - Copies Custom Instructions to your clipboard for Claude Desktop/Web!
+4. Open **Claude Desktop** $\rightarrow$ **Settings** $\rightarrow$ **Custom Instructions** and press <kbd>Ctrl</kbd> + <kbd>V</kbd>, then code right in **Claude Desktop's Code tab** (or run `claude` in your terminal).
 
 ### macOS & Linux (1-Line Command)
 ```bash

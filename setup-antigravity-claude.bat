@@ -23,6 +23,7 @@ $userProfile = [System.Environment]::GetFolderPath('UserProfile')
 $claudeDir = Join-Path $userProfile ".claude"
 $skillsDir = Join-Path $claudeDir "skills"
 $agentsDir = Join-Path $claudeDir "agents"
+$outputStylesDir = Join-Path $claudeDir "output-styles"
 $catalogDir = Join-Path $claudeDir "skills-catalog"
 $binDir = Join-Path $claudeDir "bin"
 
@@ -37,16 +38,18 @@ if (-not $scriptDir) {
 }
 $localSkills = Join-Path $scriptDir "skills"
 $localAgents = Join-Path $scriptDir "agents"
+$localOutputStyles = Join-Path $scriptDir "output-styles"
 
 # 1. Directories
 New-Item -ItemType Directory -Force -Path $claudeDir | Out-Null
 New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $outputStylesDir | Out-Null
 New-Item -ItemType Directory -Force -Path $catalogDir | Out-Null
 New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
-# 2. Deploy Skills, Catalog & Subagents (clean up retired legacy skills on upgrade)
-Write-Host "`n[1/6] Deploying 12 skills and 2 subagents to $claudeDir..." -ForegroundColor Yellow -NoNewline
+# 2. Deploy Skills, Catalog, Subagents & Output Styles (clean up retired legacy skills on upgrade)
+Write-Host "`n[1/6] Deploying 12 skills, 2 subagents, and Simple English style to $claudeDir..." -ForegroundColor Yellow -NoNewline
 $disabledDir = Join-Path $claudeDir "skills-disabled"
 foreach ($legacySkill in @("antigravity", "antigravity-planner", "neural-context")) {
     foreach ($base in @($skillsDir, $catalogDir, $disabledDir)) {
@@ -71,39 +74,57 @@ if (Test-Path $localAgents) {
         Copy-Item -Path $_.FullName -Destination (Join-Path $agentsDir $_.Name) -Force
     }
 }
+if (Test-Path $localOutputStyles) {
+    Get-ChildItem -Path $localOutputStyles -Filter "*.md" -File | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $outputStylesDir $_.Name) -Force
+    }
+}
 Write-Host " [DONE]" -ForegroundColor Green
 
-# 3. Global CLAUDE.md Handling (Conflict Resolution: Overwrite / Append / Cancel)
+# 3. Global CLAUDE.md Handling (Conflict Resolution: Overwrite / Keep / Append / Cancel)
 Write-Host "[2/6] Configuring global CLAUDE.md..." -ForegroundColor Yellow
 $claudeMdSource = Join-Path $scriptDir "CLAUDE.md"
 $claudeMdDest = Join-Path $claudeDir "CLAUDE.md"
 
 if (Test-Path $claudeMdDest) {
     $existingContent = Get-Content $claudeMdDest -Raw
-    if ($existingContent -notlike "*ANTIGRAVITY OPERATING SYSTEM DIRECTIVE*") {
+    $sourceContent = Get-Content $claudeMdSource -Raw
+    if ($existingContent -eq $sourceContent) {
+        Write-Host "  -> Global CLAUDE.md is already up to date." -ForegroundColor Green
+    } else {
+        $isExistingAntigravity = ($existingContent -like "*ANTIGRAVITY OPERATING SYSTEM DIRECTIVE*")
         Write-Host "`n  [!] An existing CLAUDE.md was detected at: $claudeMdDest" -ForegroundColor Magenta
+        if ($isExistingAntigravity) {
+            Write-Host "      It differs from the repo copy (you may have customized it)." -ForegroundColor Gray
+        }
         Write-Host "      How would you like to handle this?" -ForegroundColor Yellow
-        Write-Host "      [O] Overwrite (recommended - backs up existing file to CLAUDE.md.bak)" -ForegroundColor White
-        Write-Host "      [A] Append Antigravity Protocol to the end of existing file" -ForegroundColor White
+        Write-Host "      [O] Overwrite (backs up existing file to CLAUDE.md.bak)" -ForegroundColor White
+        Write-Host "      [K] Keep existing CLAUDE.md untouched" -ForegroundColor White
+        if (-not $isExistingAntigravity) {
+            Write-Host "      [A] Append Antigravity Protocol to the end of existing file" -ForegroundColor White
+        }
         Write-Host "      [C] Cancel / Exit setup without modifying CLAUDE.md" -ForegroundColor White
-        
+
+        $allowedPattern = if ($isExistingAntigravity) { '^[OKC]$' } else { '^[OKAC]$' }
+        $promptLabel = if ($isExistingAntigravity) { "O/K/C" } else { "O/K/A/C" }
         $mdChoice = ""
-        while ($mdChoice -notmatch '^[OAC]$') {
-            Write-Host -NoNewline "      Select an option (O/A/C): " -ForegroundColor Yellow
+        while ($mdChoice -notmatch $allowedPattern) {
+            Write-Host -NoNewline "      Select an option ($promptLabel): " -ForegroundColor Yellow
             $rawInput = Read-Host
             if ($rawInput -eq $null) {
-                $mdChoice = 'O'
+                $mdChoice = if ($isExistingAntigravity) { 'K' } else { 'O' }
                 break
             }
             $mdChoice = $rawInput.Trim().ToUpper()
         }
-        
+
         if ($mdChoice -eq 'C') {
             Write-Host "`nSetup cancelled. No modifications were made to CLAUDE.md." -ForegroundColor Yellow
             exit 0
+        } elseif ($mdChoice -eq 'K') {
+            Write-Host "  -> Kept your existing CLAUDE.md untouched." -ForegroundColor Green
         } elseif ($mdChoice -eq 'A') {
             Copy-Item $claudeMdDest "$claudeMdDest.bak" -Force
-            $sourceContent = Get-Content $claudeMdSource -Raw
             $merged = $existingContent + "`n`n" + $sourceContent
             [System.IO.File]::WriteAllText($claudeMdDest, $merged, [System.Text.Encoding]::UTF8)
             Write-Host "  -> Antigravity appended to existing CLAUDE.md (backup: CLAUDE.md.bak)" -ForegroundColor Green
@@ -112,17 +133,14 @@ if (Test-Path $claudeMdDest) {
             Copy-Item $claudeMdSource $claudeMdDest -Force
             Write-Host "  -> CLAUDE.md overwritten (original backed up to CLAUDE.md.bak)" -ForegroundColor Green
         }
-    } else {
-        Copy-Item $claudeMdSource $claudeMdDest -Force
-        Write-Host "  -> Updated existing Antigravity CLAUDE.md." -ForegroundColor Green
     }
 } else {
     Copy-Item $claudeMdSource $claudeMdDest -Force
     Write-Host "  -> Global CLAUDE.md deployed successfully." -ForegroundColor Green
 }
 
-# 4. Prompt Caching (Env Var + Native settings.json TTL)
-Write-Host "[3/6] Enabling 1-Hour Prompt Caching (settings.json + env)..." -ForegroundColor Yellow -NoNewline
+# 4. Prompt Caching, Output Style, Advisor & Native Settings
+Write-Host "[3/6] Configuring 1h caching, Simple English style & native settings..." -ForegroundColor Yellow -NoNewline
 [System.Environment]::SetEnvironmentVariable('ENABLE_PROMPT_CACHING_1H', '1', 'User')
 $env:ENABLE_PROMPT_CACHING_1H = '1'
 $settingsJsonPath = Join-Path $claudeDir "settings.json"
@@ -135,6 +153,19 @@ try {
     }
     $cCfg | Add-Member -NotePropertyName "promptCacheTtl" -NotePropertyValue "1h" -Force
     $cCfg | Add-Member -NotePropertyName "subagentPromptCacheTtl" -NotePropertyValue "1h" -Force
+    $cCfg | Add-Member -NotePropertyName "outputStyle" -NotePropertyValue "Simple English" -Force
+    $cCfg | Add-Member -NotePropertyName "advisorModel" -NotePropertyValue "fable" -Force
+    $cCfg | Add-Member -NotePropertyName "inputNeededNotifEnabled" -NotePropertyValue $true -Force
+    $cCfg | Add-Member -NotePropertyName "agentPushNotifEnabled" -NotePropertyValue $true -Force
+    if (-not $cCfg.extraKnownMarketplaces) {
+        $cCfg | Add-Member -NotePropertyName "extraKnownMarketplaces" -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    if (-not $cCfg.extraKnownMarketplaces.PSObject.Properties["centminmod"]) {
+        $cCfg.extraKnownMarketplaces | Add-Member -NotePropertyName "centminmod" -NotePropertyValue ([pscustomobject]@{ source = [pscustomobject]@{ source = "github"; repo = "centminmod/claude-plugins" } }) -Force
+    }
+    if (-not $cCfg.extraKnownMarketplaces.PSObject.Properties["claude-community"]) {
+        $cCfg.extraKnownMarketplaces | Add-Member -NotePropertyName "claude-community" -NotePropertyValue ([pscustomobject]@{ source = [pscustomobject]@{ source = "github"; repo = "anthropics/claude-plugins-community" } }) -Force
+    }
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     [System.IO.File]::WriteAllText($settingsJsonPath, ($cCfg | ConvertTo-Json -Depth 10), $utf8NoBom)
 } catch {}
@@ -275,7 +306,7 @@ Write-Host "  1. Open Claude Desktop (or Claude.ai web)." -ForegroundColor White
 Write-Host "  2. Go to: Settings -> Custom Instructions." -ForegroundColor White
 Write-Host "  3. Press Ctrl + V to paste the copied instructions." -ForegroundColor White
 Write-Host "  4. Click Save." -ForegroundColor White
-Write-Host "  5. Open your terminal, run 'claude', and start building!" -ForegroundColor White
+Write-Host "  5. Start coding in Claude Desktop's Code tab (or run 'claude' in your terminal)!" -ForegroundColor White
 
 # -------------------------------------------------------------
 # STEP 3: SETTINGS & CUSTOMIZATION

@@ -9,15 +9,17 @@ echo "==========================================================================
 CLAUDE_DIR="$HOME/.claude"
 SKILLS_DIR="$CLAUDE_DIR/skills"
 AGENTS_DIR="$CLAUDE_DIR/agents"
+STYLES_DIR="$CLAUDE_DIR/output-styles"
 CATALOG_DIR="$CLAUDE_DIR/skills-catalog"
 BIN_DIR="$CLAUDE_DIR/bin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOCAL_SKILLS="$SCRIPT_DIR/skills"
 LOCAL_AGENTS="$SCRIPT_DIR/agents"
+LOCAL_STYLES="$SCRIPT_DIR/output-styles"
 
-mkdir -p "$CLAUDE_DIR" "$SKILLS_DIR" "$AGENTS_DIR" "$CATALOG_DIR" "$BIN_DIR"
+mkdir -p "$CLAUDE_DIR" "$SKILLS_DIR" "$AGENTS_DIR" "$STYLES_DIR" "$CATALOG_DIR" "$BIN_DIR"
 
-echo -n "[1/6] Deploying 12 skills and 2 subagents to $CLAUDE_DIR... "
+echo -n "[1/6] Deploying 12 skills, 2 subagents, and Simple English style to $CLAUDE_DIR... "
 for legacy in "antigravity" "antigravity-planner" "neural-context"; do
     rm -rf "$SKILLS_DIR/$legacy" "$CATALOG_DIR/$legacy" "$CLAUDE_DIR/skills-disabled/$legacy" 2>/dev/null || true
 done
@@ -28,6 +30,9 @@ fi
 if [ -d "$LOCAL_AGENTS" ]; then
     cp -f "$LOCAL_AGENTS"/*.md "$AGENTS_DIR/" 2>/dev/null || true
 fi
+if [ -d "$LOCAL_STYLES" ]; then
+    cp -f "$LOCAL_STYLES"/*.md "$STYLES_DIR/" 2>/dev/null || true
+fi
 echo "[DONE]"
 
 echo "[2/6] Configuring global CLAUDE.md..."
@@ -35,41 +40,60 @@ CLAUDE_MD_DEST="$CLAUDE_DIR/CLAUDE.md"
 CLAUDE_MD_SRC="$SCRIPT_DIR/CLAUDE.md"
 
 if [ -f "$CLAUDE_MD_DEST" ]; then
-    if ! grep -q "ANTIGRAVITY OPERATING SYSTEM DIRECTIVE" "$CLAUDE_MD_DEST"; then
+    if cmp -s "$CLAUDE_MD_DEST" "$CLAUDE_MD_SRC"; then
+        echo "  -> Global CLAUDE.md is already up to date."
+    else
+        IS_ANTIGRAVITY=0
+        grep -q "ANTIGRAVITY OPERATING SYSTEM DIRECTIVE" "$CLAUDE_MD_DEST" && IS_ANTIGRAVITY=1 || true
         echo ""
         echo "  [!] An existing CLAUDE.md was detected at: $CLAUDE_MD_DEST"
+        [ "$IS_ANTIGRAVITY" = "1" ] && echo "      It differs from the repo copy (you may have customized it)."
         echo "      How would you like to handle this?"
-        echo "      [O] Overwrite (recommended - backs up existing file to CLAUDE.md.bak)"
-        echo "      [A] Append Antigravity Protocol to the end of existing file"
+        echo "      [O] Overwrite (backs up existing file to CLAUDE.md.bak)"
+        echo "      [K] Keep existing CLAUDE.md untouched"
+        [ "$IS_ANTIGRAVITY" = "0" ] && echo "      [A] Append Antigravity Protocol to the end of existing file"
         echo "      [C] Cancel / Exit setup without modifying CLAUDE.md"
-        read -p "      Select an option (O/A/C): " mdChoice
+        read -p "      Select an option: " mdChoice
         case "$mdChoice" in
+            [kK])
+                echo "  -> Kept your existing CLAUDE.md untouched."
+                ;;
             [aA])
-                cp "$CLAUDE_MD_DEST" "$CLAUDE_MD_DEST.bak"
-                echo "" >> "$CLAUDE_MD_DEST"
-                cat "$CLAUDE_MD_SRC" >> "$CLAUDE_MD_DEST"
-                echo "  -> Antigravity appended to existing CLAUDE.md (backup saved to CLAUDE.md.bak)"
+                if [ "$IS_ANTIGRAVITY" = "0" ]; then
+                    cp "$CLAUDE_MD_DEST" "$CLAUDE_MD_DEST.bak"
+                    echo "" >> "$CLAUDE_MD_DEST"
+                    cat "$CLAUDE_MD_SRC" >> "$CLAUDE_MD_DEST"
+                    echo "  -> Antigravity appended to existing CLAUDE.md (backup saved to CLAUDE.md.bak)"
+                else
+                    echo "  -> Kept your existing CLAUDE.md untouched."
+                fi
                 ;;
             [cC])
                 echo "Setup cancelled. No modifications were made to CLAUDE.md."
                 exit 0
                 ;;
-            *)
+            [oO])
                 cp "$CLAUDE_MD_DEST" "$CLAUDE_MD_DEST.bak"
                 cp -f "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
                 echo "  -> CLAUDE.md overwritten (original backed up to CLAUDE.md.bak)"
                 ;;
+            *)
+                if [ "$IS_ANTIGRAVITY" = "1" ]; then
+                    echo "  -> Kept your existing CLAUDE.md untouched."
+                else
+                    cp "$CLAUDE_MD_DEST" "$CLAUDE_MD_DEST.bak"
+                    cp -f "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
+                    echo "  -> CLAUDE.md overwritten (original backed up to CLAUDE.md.bak)"
+                fi
+                ;;
         esac
-    else
-        cp -f "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
-        echo "  -> Antigravity CLAUDE.md updated."
     fi
 else
     cp -f "$CLAUDE_MD_SRC" "$CLAUDE_MD_DEST"
     echo "  -> Global CLAUDE.md deployed successfully."
 fi
 
-echo -n "[3/6] Enabling 1-Hour Prompt Caching (settings.json + env)... "
+echo -n "[3/6] Configuring 1h caching, Simple English style & native settings... "
 export ENABLE_PROMPT_CACHING_1H=1
 grep -q "ENABLE_PROMPT_CACHING_1H" "$HOME/.bashrc" 2>/dev/null || echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.bashrc"
 [ -f "$HOME/.zshrc" ] && (grep -q "ENABLE_PROMPT_CACHING_1H" "$HOME/.zshrc" 2>/dev/null || echo "export ENABLE_PROMPT_CACHING_1H=1" >> "$HOME/.zshrc")
@@ -84,6 +108,13 @@ if os.path.exists(p):
     except Exception: data = {}
 data["promptCacheTtl"] = "1h"
 data["subagentPromptCacheTtl"] = "1h"
+data["outputStyle"] = "Simple English"
+data["advisorModel"] = "fable"
+data["inputNeededNotifEnabled"] = True
+data["agentPushNotifEnabled"] = True
+mk = data.setdefault("extraKnownMarketplaces", {})
+mk.setdefault("centminmod", {"source": {"source": "github", "repo": "centminmod/claude-plugins"}})
+mk.setdefault("claude-community", {"source": {"source": "github", "repo": "anthropics/claude-plugins-community"}})
 with open(p, "w", encoding="utf-8") as f: json.dump(data, f, indent=2)
 ' 2>/dev/null || true
 fi
@@ -147,7 +178,7 @@ echo "  1. Open Claude Desktop (or Claude.ai web)."
 echo "  2. Go to: Settings -> Custom Instructions."
 echo "  3. Press Cmd + V (or Ctrl + V) to paste instructions."
 echo "  4. Click Save."
-echo "  5. Open your terminal, run 'claude', and start building!"
+echo "  5. Start coding in Claude Desktop's Code tab (or run 'claude' in your terminal)!"
 
 echo ""
 echo "=========================================================================="

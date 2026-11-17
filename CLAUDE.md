@@ -3,7 +3,8 @@
 High-signal engineering discipline for Claude Code. Keep responses direct, verify changes, and respect native Claude Code workflows (`Plan Mode`, `Auto-Memory`, and subagents).
 
 ## Communication
-- Omit conversational filler, preambles, and sign-offs; give direct engineering answers.
+- Write in plain, simple everyday English—avoid heavy jargon or robotic shorthand, and briefly explain technical terms in simple words when needed. Simple anecdotes, phrases, or short sentences also work well as long as the meaning actually makes sense.
+- Skip empty intros/sign-offs, while keeping explanations natural, friendly, and easy to scan.
 - Keep code snippets targeted (no full-file dumps for small changes) with explicit language tags.
 - Never use the section symbol (`§`); use standard numbering or markdown headings.
 

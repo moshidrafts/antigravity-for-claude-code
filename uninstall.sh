@@ -44,6 +44,7 @@ for s in "${ALL_SKILLS[@]}"; do
     rm -rf "$DISABLED_DIR/$s" 2>/dev/null || true
 done
 rm -f "$CLAUDE_DIR/agents/architect.md" "$CLAUDE_DIR/agents/verifier.md" 2>/dev/null || true
+rm -f "$CLAUDE_DIR/output-styles/simple-english.md" 2>/dev/null || true
 rm -rf "$CATALOG_DIR" 2>/dev/null || true
 
 echo "[2/5] Restoring CLAUDE.md..."
@@ -86,6 +87,10 @@ except Exception:
 if isinstance(data, dict):
     data.pop("promptCacheTtl", None)
     data.pop("subagentPromptCacheTtl", None)
+    if data.get("outputStyle") == "Simple English":
+        data.pop("outputStyle", None)
+    if data.get("advisorModel") == "fable":
+        data.pop("advisorModel", None)
     hooks = data.get("hooks")
     if isinstance(hooks, dict) and isinstance(hooks.get("PreToolUse"), list):
         kept = [e for e in hooks["PreToolUse"] if not any("rtk hook claude" in str(h.get("command", "")) for h in (e.get("hooks") or []))]

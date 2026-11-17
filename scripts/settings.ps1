@@ -436,6 +436,27 @@ function Run-Diagnostics {
     }
     Write-Host "  [+] Native Subagents:      $agentCount of 2 installed (architect, verifier)" -ForegroundColor Green
 
+    $stylePath = Join-Path $claudeDir "output-styles\simple-english.md"
+    $activeStyle = $null
+    $activeAdvisor = $null
+    if (Test-Path $settingsJson) {
+        try {
+            $tmpS = Get-Content $settingsJson -Raw | ConvertFrom-Json
+            $activeStyle = $tmpS.outputStyle
+            $activeAdvisor = $tmpS.advisorModel
+        } catch {}
+    }
+    if ((Test-Path $stylePath) -and ($activeStyle -eq "Simple English")) {
+        Write-Host "  [+] Output Style:          Simple English (ACTIVE)" -ForegroundColor Green
+    } elseif ($activeStyle) {
+        Write-Host "  [+] Output Style:          $activeStyle" -ForegroundColor Cyan
+    } else {
+        Write-Host "  [!] Output Style:          Default" -ForegroundColor DarkGray
+    }
+    if ($activeAdvisor) {
+        Write-Host "  [+] Advisor Model:         $activeAdvisor" -ForegroundColor Green
+    }
+
     $marketplacesJson = Join-Path $claudeDir "plugins\known_marketplaces.json"
     if (Test-Path $marketplacesJson) {
         try {
